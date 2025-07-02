@@ -1,18 +1,11 @@
-#[cfg(test)]
-mod test;
-
-pub mod build_info;
-
-mod profile;
-mod remote;
-
-use crate::util::find_program;
+use crate::conan_util::find_program;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use thiserror::Error;
 
-use build_info::{build_settings::BuildSettings, BuildInfo};
+use crate::conan_build_info::BuildInfo;
+use crate::conan_build_settings::BuildSettings;
 
 #[derive(Debug, Error)]
 pub enum ConanInstallError {
@@ -42,6 +35,7 @@ pub struct InstallCommand<'a> {
     profile_host: Option<&'a str>,
     profile_build: Option<&'a str>,
     remote: Option<&'a str>,
+    settings: Option<Vec<&'a str>>,
     build_settings: BuildSettings,
     build_options: Option<Vec<&'a str>>,
     build_policy: Option<BuildPolicy>,
@@ -56,6 +50,7 @@ pub struct InstallCommandBuilder<'a> {
     profile_host: Option<&'a str>,
     profile_build: Option<&'a str>,
     remote: Option<&'a str>,
+    settings: Option<Vec<&'a str>>,
     build_settings: Option<BuildSettings>,
     build_options: Option<Vec<&'a str>>,
     build_policy: Option<BuildPolicy>,
@@ -101,6 +96,14 @@ impl<'a> InstallCommandBuilder<'a> {
         self
     }
 
+    pub fn with_settings(mut self, settings: &[&'a str]) -> Self {
+        if self.settings.is_none() {
+            self.settings = Some(Vec::new())
+        }
+        self.settings.as_mut().unwrap().extend(settings);
+        self
+    }
+
     pub fn with_options(mut self, opts: &[&'a str]) -> Self {
         if self.build_options.is_none() {
             self.build_options = Some(Vec::new());
@@ -130,6 +133,7 @@ impl<'a> InstallCommandBuilder<'a> {
             profile_host: self.profile_host,
             profile_build: self.profile_build,
             remote: self.remote,
+            settings: self.settings,
             build_settings: self.build_settings.unwrap_or_default(),
             build_options: self.build_options,
             build_policy: self.build_policy,
@@ -184,6 +188,10 @@ impl<'a> InstallCommand<'a> {
             args.extend(build_options.iter().map(|x| ["-o", *x]).flatten());
         }
 
+        if let Some(settings) = &self.settings {
+            args.extend(settings.iter().map(|x| ["-s", *x]).flatten());
+        }
+
         let output_dir = self.output_dir();
         if let Some(output_dir) = &output_dir {
             let current_dir = env::current_dir()?.to_path_buf();
@@ -221,14 +229,10 @@ impl<'a> InstallCommand<'a> {
         let program = find_program()?;
         let output_file = self.output_file()?;
         let mut command = Command::new(program);
-        if command.args(args).status().is_ok() {
+        if let Ok(_) = command.args(args).status() {
             BuildInfo::from_file(output_file.as_path())
         } else {
             None
         }
-    }
-
-    pub fn generate_if_no_buildinfo(&self) -> Option<BuildInfo> {
-        BuildInfo::from_file(self.output_file()?.as_path()).or_else(|| self.generate())
     }
 }
