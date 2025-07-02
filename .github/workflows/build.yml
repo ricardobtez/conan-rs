@@ -16,6 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - uses: turtlebrowser/get-conan@main
+      with:
+        version: 1.66.0
     - name: Build
       run: cargo build --verbose
     - name: Run tests
