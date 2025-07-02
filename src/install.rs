@@ -1,11 +1,18 @@
-use crate::conan_util::find_program;
+#[cfg(test)]
+mod test;
+
+pub mod build_info;
+
+mod profile;
+mod remote;
+
+use crate::util::find_program;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use thiserror::Error;
 
-use crate::conan_build_info::BuildInfo;
-use crate::conan_build_settings::BuildSettings;
+use build_info::{build_settings::BuildSettings, BuildInfo};
 
 #[derive(Debug, Error)]
 pub enum ConanInstallError {
@@ -229,10 +236,14 @@ impl<'a> InstallCommand<'a> {
         let program = find_program()?;
         let output_file = self.output_file()?;
         let mut command = Command::new(program);
-        if let Ok(_) = command.args(args).status() {
+        if command.args(args).status().is_ok() {
             BuildInfo::from_file(output_file.as_path())
         } else {
             None
         }
+    }
+
+    pub fn generate_if_no_buildinfo(&self) -> Option<BuildInfo> {
+        BuildInfo::from_file(self.output_file()?.as_path()).or_else(|| self.generate())
     }
 }
