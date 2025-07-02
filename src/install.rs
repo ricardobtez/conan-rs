@@ -42,6 +42,7 @@ pub struct InstallCommand<'a> {
     profile_host: Option<&'a str>,
     profile_build: Option<&'a str>,
     remote: Option<&'a str>,
+    settings: Option<Vec<&'a str>>,
     build_settings: BuildSettings,
     build_options: Option<Vec<&'a str>>,
     build_policy: Option<BuildPolicy>,
@@ -56,6 +57,7 @@ pub struct InstallCommandBuilder<'a> {
     profile_host: Option<&'a str>,
     profile_build: Option<&'a str>,
     remote: Option<&'a str>,
+    settings: Option<Vec<&'a str>>,
     build_settings: Option<BuildSettings>,
     build_options: Option<Vec<&'a str>>,
     build_policy: Option<BuildPolicy>,
@@ -101,6 +103,14 @@ impl<'a> InstallCommandBuilder<'a> {
         self
     }
 
+    pub fn with_settings(mut self, settings: &[&'a str]) -> Self {
+        if self.settings.is_none() {
+            self.settings = Some(Vec::new())
+        }
+        self.settings.as_mut().unwrap().extend(settings);
+        self
+    }
+
     pub fn with_options(mut self, opts: &[&'a str]) -> Self {
         if self.build_options.is_none() {
             self.build_options = Some(Vec::new());
@@ -130,6 +140,7 @@ impl<'a> InstallCommandBuilder<'a> {
             profile_host: self.profile_host,
             profile_build: self.profile_build,
             remote: self.remote,
+            settings: self.settings,
             build_settings: self.build_settings.unwrap_or_default(),
             build_options: self.build_options,
             build_policy: self.build_policy,
@@ -182,6 +193,10 @@ impl<'a> InstallCommand<'a> {
 
         if let Some(build_options) = &self.build_options {
             args.extend(build_options.iter().map(|x| ["-o", *x]).flatten());
+        }
+
+        if let Some(settings) = &self.settings {
+            args.extend(settings.iter().map(|x| ["-s", *x]).flatten());
         }
 
         let output_dir = self.output_dir();
